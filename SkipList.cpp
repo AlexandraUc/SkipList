@@ -118,7 +118,6 @@ void SkipList::inserare(const int& val){
     int nivelCurent = 1;
 
     Nod* nodNou = new Nod(val);
-    nodNou->jos = NULL;                // Suntem pe primul nivel
     nodNou->dreapta = nodInainte->dreapta;    
     nodInainte->dreapta = nodNou;
 

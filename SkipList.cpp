@@ -9,61 +9,43 @@ const int VAL_MIN = std::numeric_limits<int>::min();
 std::ifstream f("abce.in");
 std::ofstream g("abce.out");
 
-/*
-    Un SkipList va avea un pointer la primul nod din stanga sus ("capul")
-    Fiecare nivel va incepe cu un nod "cap" care va tine cea mai mica valore de int
-    Capetele vor fi conectate intre ele (jos)
-*/
-
-// Intr-un SkipList mergem doar in dreapta si in jos
 struct Nod{
     int val;
     Nod* dreapta;
     Nod* jos;
 
-    Nod(int val = VAL_MIN){                  
-        this->val = val;
-        this->dreapta = NULL;
-        this->jos = NULL;
-    }
+    Nod(int val = VAL_MIN): val(val), dreapta(nullptr), jos(nullptr) {}
 };
 
 class SkipList{
-    int nivel;                   // Numarul de nivele        
-    int lungime;                 // Numarul de elemente excluzand capetele           
+    int nivel;                               
+    int lungime;                            
     Nod* cap;                                                      
 
 public:
-    SkipList();
+    SkipList(): nivel(1), lungime(0), cap(new Nod()) {}
 
     void afisare();
-    Nod* cautare(const int&);
     void inserare(const int&);
     void nivelNou(Nod*);
     void sterge(const int&);
-    int predecesor(const int&);
-    const Nod* succesor(const int&);
     void afisInterval(const int&, const int&, std::ostringstream&);
+    const Nod* cautare(const int&);
+    const Nod* succesor(const int&);
 
     ~SkipList();
 };
-
-SkipList::SkipList(){                        
-    this->nivel = 1;
-    this->lungime = 0;                   
-    this->cap = new Nod();
-}
 
 void SkipList::afisare(){
     Nod* capCurent = this->cap;
     Nod* nodCurent;
 
     int nivelCurent = nivel;
-    while(capCurent != NULL){
+    while(capCurent != nullptr){
         std::cout << "Nivel " << nivelCurent << ": ";
         nodCurent = capCurent->dreapta;
 
-        while(nodCurent != NULL){
+        while(nodCurent != nullptr){
             std::cout << nodCurent->val << " ";
             nodCurent = nodCurent->dreapta;
         }
@@ -84,73 +66,64 @@ void SkipList::nivelNou(Nod* nodLegatura){
     this->cap->dreapta = nodLegatura;
 }
 
-Nod* SkipList::cautare(const int& val){
+const Nod* SkipList::cautare(const int& val){
     Nod* nodCurent = this->cap;
     
     while(val > nodCurent->val){
-         // Mergem ori in dreapta
-         if(nodCurent->dreapta != NULL && val >= nodCurent->dreapta->val){
+        // Mergem in dreapta cat se poate
+        while(nodCurent->dreapta != nullptr && val >= nodCurent->dreapta->val)
             nodCurent = nodCurent->dreapta;
-            // Cat de mult putem
-            while(nodCurent->dreapta != NULL && val >= nodCurent->dreapta->val)
-                nodCurent = nodCurent->dreapta;
-        } 
+        
+        // Apoi in jos
+        if(nodCurent->jos != nullptr){
+            nodCurent = nodCurent->jos;
+        }
+        // Sau iesim (ori am gasit val ori nu mai avem unde sa mergem)
         else
-            // Ori in jos
-            if(nodCurent->jos != NULL){
-                nodCurent = nodCurent->jos;
-            }
-            else
-                // Ori iesim (pe ultimul nivel si valorea din dreapta e mai mare sau am ajuns la capat)
-                break;
+            break;
     }
-    /*
-        Gasit => pointer la nod
-        Negasit => pointer la nodul care ar fi fost in fata lui (pt inserare si predecesor/ succesor)
-    */
     return nodCurent;
 }
 
 void SkipList::inserare(const int& val){
-    Nod* nodInainte = this->cautare(val);
+    Nod* nodInainte = const_cast<Nod*>(this->cautare(val));
 
     ++this->lungime;
     int nivelCurent = 1;
 
     Nod* nodNou = new Nod(val);
+    nodNou->jos = nullptr;                       
     nodNou->dreapta = nodInainte->dreapta;    
     nodInainte->dreapta = nodNou;
 
     bool urcare = rand() & 1;
     while(urcare && nivelCurent + 1 <= log(this->lungime)){
         ++nivelCurent;
-        // Cream nodul de pe nivelul superior, legand-ul de nodul de sub el
+
+        // Tre sa facem nivel nou
         Nod* nodNivelSuperior = new Nod(val);
         nodNivelSuperior->jos = nodNou;
         nodNou = nodNivelSuperior;    
 
-        // Daca avem un nivel nou
         if(nivel < nivelCurent){
             this->nivelNou(nodNivelSuperior);
         }
-        // Altfel adaugam nodul la nivelul deja existent
+       
         else{
-            // Trebuie sa cautam pozitia unde va fi inserat nodul
+            // Altfel tre sa cautam pozitia unde va fi inserat
             nodInainte = this->cap;
 
-            // Pornim de pe nivelul maxim si mergem pana la nivelul unde trebuie sa inseram exclusiv
             int nivelDeParcurs = nivel;
             while(nivelDeParcurs > nivelCurent){
-                while(nodInainte->dreapta != NULL && val > nodInainte->dreapta->val)
+                while(nodInainte->dreapta != nullptr && val > nodInainte->dreapta->val)
                     nodInainte = nodInainte->dreapta;
                 nodInainte = nodInainte->jos;
                 --nivelDeParcurs;
             }
 
-            // Parcurgem nivelul unde trebuie sa inseram pentru a gasi pozitia
-            while(nodInainte->dreapta != NULL && val > nodInainte->dreapta->val)
+            while(nodInainte->dreapta != nullptr && val > nodInainte->dreapta->val)
                 nodInainte = nodInainte->dreapta;
-            // Avem nodul dupa care trebuie sa punem noul nod, potrivim legaturile
+        
             nodNivelSuperior->dreapta = nodInainte->dreapta;
             nodInainte->dreapta = nodNivelSuperior;
 
@@ -164,23 +137,23 @@ void SkipList::sterge(const int& val){
         Nod* nodCurent = this->cap;
         Nod* vecinStanga = this->cap;
 
-        // Cautarea dar tinem minte vecinul din stanga
+        // Cautarea da pastram vecinul din stanga
         while(val > nodCurent->val){
-            if(nodCurent->dreapta != NULL && val >= nodCurent->dreapta->val){
+            if(nodCurent->dreapta != nullptr && val >= nodCurent->dreapta->val){
                 vecinStanga = nodCurent;
                 nodCurent = nodCurent->dreapta;
-                while(nodCurent->dreapta != NULL && val >= nodCurent->dreapta->val){
+                while(nodCurent->dreapta != nullptr && val >= nodCurent->dreapta->val){
                     vecinStanga = nodCurent;
                     nodCurent = nodCurent->dreapta;
                 }
             }
             else
-                if(nodCurent->jos != NULL){
+                if(nodCurent->jos != nullptr){
                     nodCurent = nodCurent->jos;
                     vecinStanga = vecinStanga->jos;
-                    // In cazul in care nu au inaintat deloc in dreapta
+                    // Doar daca au inaintat in dreapta
                     if(vecinStanga != nodCurent)
-                        // Recuperam vecinul dupa ce coboram
+                        // Recuperam vecinul din stanga dupa ce coboram
                         while(vecinStanga->dreapta != nodCurent)
                             vecinStanga = vecinStanga->dreapta;
                 }
@@ -190,10 +163,9 @@ void SkipList::sterge(const int& val){
         
         if(val == nodCurent->val){
             --this->lungime;
-            while(nodCurent != NULL){
+            while(nodCurent != nullptr){
                 bool coboara = 0;
 
-                // Recuperam vecinul dupa ce coboram
                 while(vecinStanga->dreapta != nodCurent)
                     vecinStanga = vecinStanga->dreapta;
                 
@@ -203,17 +175,16 @@ void SkipList::sterge(const int& val){
                 delete nodCurent;
                 nodCurent = aux;
 
-                // Daca nu suntem pe primul nivel si ramane gol il stergem
-                if(vecinStanga->val == VAL_MIN && vecinStanga->dreapta == NULL && vecinStanga->jos != NULL){
+                // Daca nu suntem pe primul nivel si a ramas gol il stergem
+                if(vecinStanga->val == VAL_MIN && vecinStanga->dreapta == nullptr && vecinStanga->jos != nullptr){
                     --this->nivel;
-                    // Mereu nivelul gol va fi cel mai sus, deci actualizam capul
                     this->cap = vecinStanga->jos;
                     aux = vecinStanga->jos;
                     delete vecinStanga;
                     vecinStanga = aux;
                     coboara = 1;
                 }
-                // Coboram si vecinul daca nu am facut-o deja
+                // Coboram vecinul daca nu am facut-o deja
                 if(!coboara)
                     vecinStanga = vecinStanga->jos;
             }
@@ -221,43 +192,38 @@ void SkipList::sterge(const int& val){
     }
 }
 
-int SkipList::predecesor(const int& val){
-    // Ori numarul insusi ori cea mai mare valore mai mica decat el
-    return this->cautare(val)->val;
-}
-
 const Nod* SkipList::succesor(const int& val){
-    Nod* nodGasit = this->cautare(val);
+    const Nod* nodGasit = this->cautare(val);
+    // Am gasit val
     if(nodGasit->val == val)
-        // Returnam nodul cu numarul insusi
         return nodGasit;
 
-    // Altfel coboram pana la nivelul 1 si returnam vecinul din dreapta
-    while(nodGasit->jos != NULL)
+    // ALtfel coboram pana jos si afisam vecinul din dreapta
+    while(nodGasit->jos != nullptr)
         nodGasit = nodGasit->jos;
     return nodGasit->dreapta;
 }
 
 void SkipList::afisInterval(const int& mini, const int& maxi, std::ostringstream& buff){
     const Nod* capatStanga = this->succesor(mini);
-    while(capatStanga->jos != NULL)
+    while(capatStanga->jos != nullptr)
         capatStanga = capatStanga->jos;
 
     if(capatStanga->val <= maxi)
         buff << capatStanga->val << ' ';
 
-    while(capatStanga->dreapta != NULL && capatStanga->dreapta->val <= maxi){
+    while(capatStanga->dreapta != nullptr && capatStanga->dreapta->val <= maxi){
         capatStanga = capatStanga->dreapta;
         buff << capatStanga->val << ' ';
     }
 }
 
 SkipList::~SkipList(){
-    while(this->cap != NULL){
+    while(this->cap != nullptr){
         Nod* nodCurent = this->cap->dreapta;
         Nod* aux = nodCurent;
 
-        while(nodCurent != NULL){
+        while(nodCurent != nullptr){
             nodCurent = nodCurent->dreapta;
             delete aux;
             aux = nodCurent;
@@ -270,7 +236,7 @@ SkipList::~SkipList(){
 }
 
 int main(){
-    srand(time(NULL));
+    srand(time(nullptr));
 
     SkipList skip;
     int q, operatie, x;
@@ -300,7 +266,7 @@ int main(){
 
             case 4:{
                 f >> x;
-                buff << skip.predecesor(x) << "\n";
+                buff << skip.cautare(x)->val << "\n";
                 break;
             }
 
